@@ -910,6 +910,7 @@ When you group lines of expression into `{}`, you create a new **local scope/blo
   **Comparison with `new`**:
   - `new` returns `T*`, while `malloc` returns a `void*` pointer, which needs to be type-casted with `(T*)`.
   - `new` can take an addresss as a param: `new (address) Type(args...);` (placement new), which doesn't alloc mem instead calls the constructor at the specified mem addr. `malloc` cannot accept an address as a parameter.
+    - When an object is constructed using placement new, it must also be explicitly destroyed using an explicit destructor call because the memory was manually allocated and does not automatically trigger destruction.
 - **`free`** is used to deallocate memory allocated with `malloc`:
   ```cpp
   free(ptr);
@@ -923,8 +924,8 @@ When you group lines of expression into `{}`, you create a new **local scope/blo
 - If a class involves resource management (e.g., dynamic memory allocation), it should implement:
   1. **Destructor**:
      - Releases dynamically allocated memory of the obj. 
-      - NOTE: the destructor should NOT release the resrces it doesn't directly manage, i.e. those owned by its non-trivial members, nor should it call the destructors of these non-trivial members. As discussed in the section on `delete`, destructors are recursively called automatically.
-      - The destructor cannot be called explicitly called on an obj (Compile Error). It is meant to be automatically invoked when obj goes out of scope.
+      - NOTE: the destructor should NOT release the resrces it doesn't directly manage, i.e. those owned by its non-trivial members, nor should it call the destructors of these non-trivial members. As discussed in the section on `delete`, destructors are automatically recursively called.
+      - The destructor is rarely explictly called. It is meant to be automatically invoked when obj goes out of scope, and manual calling could result in double deletion. There are exceptions where it should be explicitly called, e.g. in unions, placement new, partial destruction, etc.
      - Example:
        ```cpp
        ~MyClass() {
@@ -969,7 +970,7 @@ When you group lines of expression into `{}`, you create a new **local scope/blo
   - Solves issues caused by shallow copying:
     - Shared ownership leads to dangling pointers or double deletion.
 
-- **Automatic resource mgmt for stack allocd obj vars**
+- **Automatic resource mgmt for stack allocated obj vars**
   - When an object goes out of scope, a "deep cleaning" executes automatically as follows:
   1. The object's destructor is called, if any.
   2. Member objects' destructors are called, if any. (facilitating a recursive deep cleaning)
@@ -1846,7 +1847,7 @@ A union in C and C++ is a special data structure that allows multiple variables 
 - A struct, unlike a union, allocates separate memory for each member.
 - A union only allows one active member at a time, with its size being that of the largest member.
 - Unions are useful in cases where you need to store multiple types of data but do not need to store them all at once. 
-- Unions do not store any information about the active type nor any about the avaliable types.
+- Unions do not store any information about the active type nor any about the avaliable types. No overhead beyond the stored variable.
 Syntax:
 
 ```cpp
@@ -1877,6 +1878,21 @@ int main() {
     return 0;
 }
 ```
+**Destructor not auto-invoked**: Upon reassignment or going out of scope, current union member's destructor is not automatically called, and explicit invocation of the member destructor is needed for safe behavior. Recall that unions do not track their active member. Consider a union with nontrivial members:
+
+```cpp
+union nontrivial {
+    Obj obj;    // Non-trivial
+    int value;  // Trivial
+};
+
+nontrivial u;
+new (&u.obj) Obj(); // Placement new to construct obj
+u.obj.~Obj();       // Manually destroy obj or mem leak
+u.value = 42;       // Assign to value
+```
+
+In cases of handling unions with nontrivial types, `std::variant` would be a better approach.
 
 ### std::variant
 
