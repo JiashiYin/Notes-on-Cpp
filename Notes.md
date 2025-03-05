@@ -1060,17 +1060,25 @@ Move semantics does not incur space usage and transfers the data in constant tim
     string str = "string";  // The RHS "string" is a temporary rvalue
     ```
 
-#### rvalue References (`T&&`)
+#### rvalue References (`type&&`)
 
-- WHY new syntax 'T&&' for rvalue ref and banning rvalue to bind to normal ref?
-  - Disambiguation in the Big Five: If we only had T&, then the compiler wouldn;t be able to decide which to use between copy and move. 
-  - Intention: Normally, passing an rvalue to a reference (`T&`) is illegal because references usually imply **persistent modification and access**. Modifying a temp obj leads to confusing semantics. In the only occasion where temps should be used,  
+NOTE: in this subsection, `type` denotes a specific type, not a templated type.
+
+- WHY new syntax `type&&` for rvalue ref?
+  - Disambiguation in the Big Five: If we only had type&&, then the compiler wouldn't be able to decide which to use between copy and move.
+- WHY rvalue cannot be bound to regular ref?
+  - Passing an rvalue to a regular reference (`type&`) is illegal because references usually imply **persistent modification and access**, thus allowing such binding renders the program prone to unintended behavior.  
 
 #### Lifetime Extension of rvalues:
 
-- `const T&` can bind to **both lvalues and rvalues**, but is **read-only**.
-- Binding rvalues to `const T&` or `T&&` (const or non-const) would **extend their lifetime to the current scope**.
-- Technically one could use a T&& as a regular variable, but using it for purposes other than move semantics leads to confusing semantics.
+- `const type&` can bind to **both lvalues and rvalues**.
+- Binding rvalues to `const type&` would **extend their lifetime to the current scope**.
+- Binding rvalues to `type&&` (either const or non-const) does NOT extend their lifetime.
+  - declaring and binding a standalone rvalue refs (not for passing function params) is confusing and dangerous, e.g.:
+    ```cpp
+    type&& ref = foo(); // Dangerous! ref binds to a destroyed temporary
+    // ref is now a dangling reference (UB if used)
+    ```
 
 ---
 
