@@ -952,7 +952,6 @@ When you group lines of expression into `{}`, you create a new **local scope/blo
            return *this;
        }
        ```
-       - To allow chaining `a1 = a2 = a3`, we cannot have return by value and pass args by reference.
 
 
 
